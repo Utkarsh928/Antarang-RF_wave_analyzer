@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+dist_installer/
+*.egg-info/
+.pytest_cache/
+
+# Secrets & Environment
+.env
+*.key
+secrets/
+local_ai/
+model_cache/
+
+# Local Model Storage, Caches & Logs
+models/
+Tarang_Legacy_Archive/
+*.obj
+*.log
+*.tmp
+caches/
+scratch/
+artifacts/
+
+# Ignore large ML dataset files, backups, and large production models (>100MB)
+*backup*.pkl
+*_candidate.pkl
+*_dict.pkl
+core/modulation/ml_model.pkl
+ml_model.pkl
+
+# Ignore Signal Files & Test Directories
+test_signals/
+demo_signals/
+downloaded_test_signals/
+official_test_files/
+navtex/
+rtty/
+*.iq
+*.wav

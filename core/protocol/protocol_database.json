@@ -1,0 +1,261 @@
+{
+  "version": "1.0",
+  "description": "Standard protocol signatures for Category 3 classification",
+  "protocols": {
+    "HDLC": {
+      "name": "High-Level Data Link Control",
+      "category": "data_link",
+      "flag_pattern": "01111110",
+      "flag_hex": "0x7E",
+      "min_frame_length_bits": 48,
+      "max_frame_length_bits": 8192,
+      "field_structure": [
+        {"name": "flag_start", "length_bits": 8, "type": "fixed", "value": "0x7E"},
+        {"name": "address", "length_bits": 8, "type": "variable", "extended": true},
+        {"name": "control", "length_bits": 8, "type": "variable"},
+        {"name": "information", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 16, "type": "checksum", "algorithm": "CRC-CCITT"},
+        {"name": "flag_end", "length_bits": 8, "type": "fixed", "value": "0x7E"}
+      ],
+      "characteristics": {
+        "bit_stuffing": true,
+        "transparency": true,
+        "address_extension": true,
+        "standards": ["ISO 13239", "ISO/IEC 3309"]
+      }
+    },
+    "AX.25": {
+      "name": "Amateur Packet Radio Link Layer",
+      "category": "data_link",
+      "flag_pattern": "01111110",
+      "flag_hex": "0x7E",
+      "min_frame_length_bits": 136,
+      "max_frame_length_bits": 2048,
+      "field_structure": [
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"},
+        {"name": "destination_address", "length_bits": 56, "type": "callsign"},
+        {"name": "source_address", "length_bits": 56, "type": "callsign"},
+        {"name": "repeaters", "length_bits": 0, "type": "variable", "max_count": 8},
+        {"name": "control", "length_bits": 8, "type": "variable"},
+        {"name": "pid", "length_bits": 8, "type": "optional"},
+        {"name": "information", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 16, "type": "checksum", "algorithm": "CRC-CCITT"},
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"}
+      ],
+      "characteristics": {
+        "callsign_encoding": "7-byte SSID",
+        "max_repeaters": 8,
+        "bit_stuffing": true,
+        "standards": ["AX.25 v2.2"]
+      }
+    },
+    "CCSDS": {
+      "name": "Consultative Committee for Space Data Systems",
+      "category": "space_link",
+      "min_frame_length_bits": 48,
+      "max_frame_length_bits": 524336,
+      "field_structure": [
+        {"name": "packet_version", "length_bits": 3, "type": "fixed", "value": 0},
+        {"name": "packet_type", "length_bits": 1, "type": "variable"},
+        {"name": "secondary_header_flag", "length_bits": 1, "type": "flag"},
+        {"name": "apid", "length_bits": 11, "type": "variable"},
+        {"name": "sequence_flags", "length_bits": 2, "type": "variable"},
+        {"name": "sequence_count", "length_bits": 14, "type": "counter"},
+        {"name": "packet_data_length", "length_bits": 16, "type": "length"},
+        {"name": "secondary_header", "length_bits": 0, "type": "optional"},
+        {"name": "user_data", "length_bits": 0, "type": "variable"}
+      ],
+      "characteristics": {
+        "byte_aligned": true,
+        "big_endian": true,
+        "fixed_primary_header": 6,
+        "standards": ["CCSDS 133.0-B-2", "CCSDS 732.0-B-3"]
+      }
+    },
+    "X.25": {
+      "name": "Packet Switched Network Protocol",
+      "category": "network",
+      "flag_pattern": "01111110",
+      "flag_hex": "0x7E",
+      "min_frame_length_bits": 32,
+      "max_frame_length_bits": 4096,
+      "field_structure": [
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"},
+        {"name": "address", "length_bits": 8, "type": "variable"},
+        {"name": "control", "length_bits": 8, "type": "variable"},
+        {"name": "packet", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 16, "type": "checksum", "algorithm": "CRC-CCITT"},
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"}
+      ],
+      "characteristics": {
+        "based_on": "HDLC",
+        "virtual_circuits": true,
+        "standards": ["ITU-T X.25"]
+      }
+    },
+    "ETHERNET": {
+      "name": "Ethernet II Frame",
+      "category": "data_link",
+      "min_frame_length_bits": 512,
+      "max_frame_length_bits": 12288,
+      "field_structure": [
+        {"name": "preamble", "length_bits": 56, "type": "fixed", "value": "0xAA.."},
+        {"name": "sfd", "length_bits": 8, "type": "fixed", "value": "0xAB"},
+        {"name": "dest_mac", "length_bits": 48, "type": "mac_address"},
+        {"name": "source_mac", "length_bits": 48, "type": "mac_address"},
+        {"name": "ethertype", "length_bits": 16, "type": "protocol_id"},
+        {"name": "payload", "length_bits": 0, "type": "variable", "min": 368, "max": 12000},
+        {"name": "fcs", "length_bits": 32, "type": "checksum", "algorithm": "CRC-32"}
+      ],
+      "characteristics": {
+        "min_payload_bytes": 46,
+        "max_payload_bytes": 1500,
+        "standards": ["IEEE 802.3"]
+      }
+    },
+    "PPP": {
+      "name": "Point-to-Point Protocol",
+      "category": "data_link",
+      "flag_pattern": "01111110",
+      "flag_hex": "0x7E",
+      "min_frame_length_bits": 32,
+      "max_frame_length_bits": 12288,
+      "field_structure": [
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"},
+        {"name": "address", "length_bits": 8, "type": "fixed", "value": "0xFF"},
+        {"name": "control", "length_bits": 8, "type": "fixed", "value": "0x03"},
+        {"name": "protocol", "length_bits": 16, "type": "protocol_id"},
+        {"name": "information", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 16, "type": "checksum", "algorithm": "CRC-CCITT"},
+        {"name": "flag", "length_bits": 8, "type": "fixed", "value": "0x7E"}
+      ],
+      "characteristics": {
+        "bit_stuffing": true,
+        "standards": ["RFC 1661", "RFC 1662"]
+      }
+    },
+    "IEEE_802.11": {
+      "name": "WiFi MAC Frame",
+      "category": "wireless_lan",
+      "min_frame_length_bits": 224,
+      "max_frame_length_bits": 18480,
+      "field_structure": [
+        {"name": "frame_control", "length_bits": 16, "type": "control"},
+        {"name": "duration", "length_bits": 16, "type": "variable"},
+        {"name": "address1", "length_bits": 48, "type": "mac_address"},
+        {"name": "address2", "length_bits": 48, "type": "mac_address"},
+        {"name": "address3", "length_bits": 48, "type": "mac_address"},
+        {"name": "sequence_control", "length_bits": 16, "type": "control"},
+        {"name": "address4", "length_bits": 48, "type": "optional"},
+        {"name": "qos_control", "length_bits": 16, "type": "optional"},
+        {"name": "ht_control", "length_bits": 32, "type": "optional"},
+        {"name": "frame_body", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 32, "type": "checksum", "algorithm": "CRC-32"}
+      ],
+      "characteristics": {
+        "variable_header": true,
+        "standards": ["IEEE 802.11-2020"]
+      }
+    },
+    "MODBUS_RTU": {
+      "name": "MODBUS Serial Protocol",
+      "category": "industrial",
+      "min_frame_length_bits": 64,
+      "max_frame_length_bits": 2048,
+      "field_structure": [
+        {"name": "device_address", "length_bits": 8, "type": "variable"},
+        {"name": "function_code", "length_bits": 8, "type": "command"},
+        {"name": "data", "length_bits": 0, "type": "variable"},
+        {"name": "crc", "length_bits": 16, "type": "checksum", "algorithm": "CRC-16-MODBUS"}
+      ],
+      "characteristics": {
+        "big_endian": true,
+        "standards": ["MODBUS Serial Line Protocol v1.02"]
+      }
+    },
+    "CAN": {
+      "name": "Controller Area Network",
+      "category": "automotive",
+      "min_frame_length_bits": 47,
+      "max_frame_length_bits": 127,
+      "field_structure": [
+        {"name": "start_of_frame", "length_bits": 1, "type": "fixed", "value": 0},
+        {"name": "identifier", "length_bits": 11, "type": "variable"},
+        {"name": "rtr", "length_bits": 1, "type": "flag"},
+        {"name": "ide", "length_bits": 1, "type": "flag"},
+        {"name": "r0", "length_bits": 1, "type": "reserved"},
+        {"name": "dlc", "length_bits": 4, "type": "length"},
+        {"name": "data", "length_bits": 0, "type": "variable", "max": 64},
+        {"name": "crc", "length_bits": 15, "type": "checksum"},
+        {"name": "crc_delimiter", "length_bits": 1, "type": "fixed"},
+        {"name": "ack_slot", "length_bits": 1, "type": "variable"},
+        {"name": "ack_delimiter", "length_bits": 1, "type": "fixed"},
+        {"name": "end_of_frame", "length_bits": 7, "type": "fixed"}
+      ],
+      "characteristics": {
+        "bit_stuffing": true,
+        "priority_based": true,
+        "standards": ["ISO 11898"]
+      }
+    },
+    "ZIGBEE": {
+      "name": "ZigBee MAC Frame",
+      "category": "iot",
+      "min_frame_length_bits": 80,
+      "max_frame_length_bits": 1016,
+      "field_structure": [
+        {"name": "frame_control", "length_bits": 16, "type": "control"},
+        {"name": "sequence_number", "length_bits": 8, "type": "counter"},
+        {"name": "dest_pan_id", "length_bits": 16, "type": "optional"},
+        {"name": "dest_address", "length_bits": 0, "type": "variable"},
+        {"name": "source_pan_id", "length_bits": 16, "type": "optional"},
+        {"name": "source_address", "length_bits": 0, "type": "variable"},
+        {"name": "payload", "length_bits": 0, "type": "variable"},
+        {"name": "fcs", "length_bits": 16, "type": "checksum", "algorithm": "CRC-16"}
+      ],
+      "characteristics": {
+        "variable_addressing": true,
+        "standards": ["IEEE 802.15.4"]
+      }
+    }
+  },
+  "crc_algorithms": {
+    "CRC-16": {
+      "polynomial": "0x8005",
+      "init": "0xFFFF",
+      "width": 16,
+      "standards": ["CRC-16-IBM", "CRC-16-ANSI"]
+    },
+    "CRC-16-MODBUS": {
+      "polynomial": "0x8005",
+      "init": "0xFFFF",
+      "width": 16,
+      "refin": true,
+      "refout": true,
+      "xorout": "0x0000"
+    },
+    "CRC-CCITT": {
+      "polynomial": "0x1021",
+      "init": "0xFFFF",
+      "width": 16,
+      "xorout": "0xFFFF",
+      "standards": ["X.25", "HDLC", "AX.25"]
+    },
+    "CRC-32": {
+      "polynomial": "0x04C11DB7",
+      "init": "0xFFFFFFFF",
+      "width": 32,
+      "xorout": "0xFFFFFFFF",
+      "standards": ["IEEE 802.3", "Ethernet"]
+    }
+  },
+  "sync_patterns": {
+    "HDLC_FLAG": "01111110",
+    "BARKER_7": "1110010",
+    "BARKER_11": "11100010010",
+    "BARKER_13": "1111100110101",
+    "IEEE_802.11_SHORT": "1011101101001000",
+    "IEEE_802.11_LONG": "1111111111111111111111111111111110100010",
+    "CCSDS_ASM": "00011010110011111111110000011101"
+  }
+}
