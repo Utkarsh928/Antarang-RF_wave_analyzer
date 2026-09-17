@@ -6,8 +6,16 @@
 #define MyAppName "Antarang Signal Analyzer"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Antarang Project Team"
-#define MyAppURL "https://github.com/Utkarsh928/antarang-installer"
+#define MyAppURL "https://github.com/Utkarsh928/Antarang-RF_wave_analyzer"
 #define MyAppExeName "Antarang.exe"
+
+; =====================================================================
+; Official Qwen 2.5 1.5B GGUF Model download URL and SHA-256 integrity hash
+; Downloaded on-demand ONLY when the user selects the optional 'ai' component
+; =====================================================================
+#define QwenModelDownloadUrl "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true"
+#define QwenModelSha256 "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+#define QwenModelFileSize 1117320736
 
 [Setup]
 ; Unique AppId (do not change across updates)
@@ -32,18 +40,19 @@ ArchitecturesAllowed=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 DisableProgramGroupPage=auto
+UsedUserAreasWarning=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Types]
-Name: "full"; Description: "Full Installation (Antarang + Local AI Overview)"
 Name: "standard"; Description: "Standard Installation (Antarang Signal Analyzer only - Fast & Lightweight)"
+Name: "full"; Description: "Full Installation (Antarang + Download Offline AI Qwen 2.5 1.5B during setup)"
 Name: "custom"; Description: "Custom Installation"; Flags: iscustom
 
 [Components]
 Name: "core"; Description: "Antarang Core Application (Signal Analysis, Demodulation, FEC, Protocol Detection)"; Types: full standard custom; Flags: fixed
-Name: "ai"; Description: "AI Overview Engine (Bundled Ollama + Local LLaMA 3.1 Model ~5 GB)"; Types: full
+Name: "ai"; Description: "Offline AI — Qwen 2.5 1.5B (~1 GB) (Optional; downloaded during setup or can be downloaded later inside Antarang)"; Types: full
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -52,11 +61,15 @@ Name: "assoc_wav"; Description: "Associate .wav RF recordings with Antarang"; Gr
 
 [Files]
 ; Core Antarang Application (from PyInstaller dist\Antarang)
-Source: "dist\Antarang\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: core
+; Strictly exclude .env, secret keys, or git data from being packaged
+Source: "dist\Antarang\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.env,*.key,*.git*"; Components: core
 
-; Optional AI Overview Bundle (placed inside {app}\ollama if checked)
-; If packaging with offline Ollama bundle:
-Source: "ollama_bundle\*"; DestDir: "{app}\ollama"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: ai
+; Optional Offline AI: Qwen 2.5 1.5B GGUF Model (~1.04 GB)
+; Fetched from official Hugging Face URL during installation ONLY when 'ai' component is selected
+; Not bundled inside the installer EXE
+; Target directory: %LOCALAPPDATA%\Tarang\models\qwen2.5-1.5b-instruct\ (where Antarang loads local AI)
+; If not selected, user can download it anytime from inside Antarang via the AI Overview panel
+Source: "{#QwenModelDownloadUrl}"; DestName: "qwen2.5-1.5b-instruct-q4_k_m.gguf"; DestDir: "{localappdata}\Tarang\models\qwen2.5-1.5b-instruct"; Hash: "{#QwenModelSha256}"; ExternalSize: {#QwenModelFileSize}; Flags: external download ignoreversion; Components: ai
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\branding\tarang.ico"

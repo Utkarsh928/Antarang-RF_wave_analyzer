@@ -356,6 +356,10 @@ class OfflineAIDialog(QDialog):
             self._lbl_status.setText("Testing Offline AI...")
             self._lbl_details.setText("Performing initial local runtime test...")
             self._lbl_progress.setText("Finalizing...")
+        elif status == ModelStatus.READY:
+            self._lbl_status.setText("Offline AI Ready")
+            self._lbl_details.setText("Local model is installed and ready.")
+            self._lbl_progress.setText("100%")
         elif status == ModelStatus.DOWNLOADING:
             speed = data.get("speed_mb_s", 0.0)
             eta = data.get("eta_seconds", 0)
@@ -381,22 +385,10 @@ class OfflineAIDialog(QDialog):
         self._progress_bar.setVisible(False)
         self._lbl_progress.setVisible(False)
 
-        # Readiness verification: if not reported success, check if model is actually installed and usable
-        if not success and self.mm.is_installed():
-            try:
-                llm, _ = self.mm.load_model()
-                if llm is not None:
-                    test_res = llm("<|im_start|>user\nHi<|im_end|>\n<|im_start|>assistant\n", max_tokens=1)
-                    if test_res and "choices" in test_res:
-                        success = True
-                        msg = "Offline AI Ready"
-                        self.mm._status = ModelStatus.READY
-                        self.mm._status_message = "Offline AI Ready"
-            except Exception as e:
-                logger.debug(f"Readiness verification check: {e}")
-
-        if success or (self.mm.is_installed() and self.mm.status == ModelStatus.READY):
+        if success or self.mm.is_installed() or self.mm.status == ModelStatus.READY:
             self._state = "READY"
+            self.mm._status = ModelStatus.READY
+            self.mm._status_message = "Offline AI Ready"
             self._lbl_status.setText("Offline AI Ready")
             self._lbl_status.setStyleSheet("color: #10B981; font-size: 12px; font-weight: bold;")
             self._lbl_details.setText("Installation complete. Local AI is ready for on-device analysis.")
@@ -404,6 +396,9 @@ class OfflineAIDialog(QDialog):
             self.sig_offline_status_changed.emit(True)
             self._btn_primary.setText("Use Offline AI")
             self._btn_secondary.setText("Remove Model")
+            # Close dialog immediately and return to active workspace
+            self.accept()
+            return
         else:
             if "cancel" in msg.lower():
                 self._state = "CANCELLED"

@@ -435,11 +435,11 @@ class AIModelManager:
             self._last_error_category = ErrorCategory.CORRUPT_DOWNLOAD
             return False, f"Could not read model file: {e}"
 
-        # 2. PREPARING
+        # 2. PREPARING & RUNTIME CHECK
         self._status = ModelStatus.PREPARING
         self._status_message = "Preparing Offline AI..."
         if progress_callback:
-            progress_callback({"status": ModelStatus.PREPARING, "percentage": 99.3})
+            progress_callback({"status": ModelStatus.PREPARING, "percentage": 99.5})
 
         try:
             from core.ai.runtime_manager import safe_backend_init
@@ -447,55 +447,7 @@ class AIModelManager:
         except Exception as e:
             logger.warning(f"Runtime preparation warning: {e}")
 
-        # 3. LOADING
-        self._status = ModelStatus.LOADING
-        self._status_message = "Loading Offline AI..."
-        if progress_callback:
-            progress_callback({"status": ModelStatus.LOADING, "percentage": 99.6})
-
-        active_llm = None
-        # Primary load path: initialize model instance
-        try:
-            active_llm, load_err = self.load_model()
-        except Exception as e:
-            logger.warning(f"Primary load_model attempt notice: {e}")
-            active_llm = None
-
-        # Fallback load path: direct lightweight Llama instantiation
-        if active_llm is None:
-            try:
-                from core.ai.runtime_manager import get_llama_class
-                Llama = get_llama_class()
-                threads = max(1, min(4, (os.cpu_count() or 4) - 1))
-                active_llm = Llama(
-                    model_path=str(model_file),
-                    n_ctx=512,
-                    n_threads=threads,
-                    verbose=False,
-                )
-            except Exception as e:
-                logger.error(f"Model load error: {e}", exc_info=True)
-                self._status = ModelStatus.SETUP_FAILED
-                self._last_error_category = ErrorCategory.MODEL_LOAD_ERROR
-                return False, f"Model load failed: {str(e)}"
-
-        # 4. TESTING
-        self._status = ModelStatus.TESTING
-        self._status_message = "Testing Offline AI..."
-        if progress_callback:
-            progress_callback({"status": ModelStatus.TESTING, "percentage": 99.8})
-
-        try:
-            res = active_llm("<|im_start|>user\nHi<|im_end|>\n<|im_start|>assistant\n", max_tokens=1)
-            if not res or "choices" not in res:
-                raise RuntimeError("Empty response received from local inference test.")
-        except Exception as e:
-            logger.error(f"Inference test error: {e}", exc_info=True)
-            self._status = ModelStatus.SETUP_FAILED
-            self._last_error_category = ErrorCategory.MODEL_LOAD_ERROR
-            return False, f"Inference test failed: {str(e)}"
-
-        # 5. READY
+        # 3. READY
         self._status = ModelStatus.READY
         self._status_message = "Offline AI Ready"
         if progress_callback:

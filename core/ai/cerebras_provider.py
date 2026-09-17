@@ -23,9 +23,9 @@ class CerebrasProvider(AIProvider):
     BASE_URL = "https://api.cerebras.ai/v1"
 
     FALLBACK_MODELS = [
+        "gpt-oss-120b",
+        "qwen-3.8-27b",
         "llama3.3-70b",
-        "llama3.1-70b",
-        "llama3.1-8b",
     ]
 
     def __init__(self, config: Optional[AIConfig] = None):

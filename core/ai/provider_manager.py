@@ -186,9 +186,9 @@ class AIProviderManager:
 
     def _categorize_error(self, err: str) -> str:
         err_lower = (err or "").lower()
-        if any(w in err_lower for w in ("401", "auth", "api key", "unauthorized")):
+        if any(w in err_lower for w in ("401", "403", "auth", "api key", "unauthorized", "forbidden", "permission_denied", "denied access")):
             return "AUTHENTICATION"
-        if any(w in err_lower for w in ("429", "quota", "rate limit", "credits")):
+        if any(w in err_lower for w in ("429", "quota", "rate limit", "credits", "402", "payment", "billing")):
             return "RATE_LIMIT_OR_QUOTA"
         if any(w in err_lower for w in ("timeout", "timed out")):
             return "TIMEOUT"
@@ -279,8 +279,8 @@ class AIProviderManager:
                     f"Category: {err_cat}. Reason: {response.error}"
                 )
 
-                # Fatal auth or model errors shouldn't retry the same provider
-                if err_cat in ("AUTHENTICATION", "MODEL_UNAVAILABLE"):
+                # Fatal auth, quota/billing, or model errors shouldn't retry the same provider
+                if err_cat in ("AUTHENTICATION", "MODEL_UNAVAILABLE", "RATE_LIMIT_OR_QUOTA"):
                     break
 
                 # Exponential backoff before next attempt on same provider

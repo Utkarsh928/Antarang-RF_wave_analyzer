@@ -14,6 +14,48 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 
+def _find_dotenv_candidates(project_root: Optional[Path] = None) -> list:
+    """Find all potential .env file locations across repository, app data, and executables."""
+    import sys
+    candidates = []
+    if project_root:
+        candidates.append(project_root / ".env")
+    candidates.append(Path.cwd() / ".env")
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).parent
+        candidates.append(exe_dir / ".env")
+        candidates.append(exe_dir / "_internal" / ".env")
+        candidates.append(exe_dir.parent / ".env")
+    for parent in Path(__file__).resolve().parents:
+        candidates.append(parent / ".env")
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "Tarang" / ".env")
+        candidates.append(Path(local_app_data) / "Antarang" / ".env")
+    app_data = os.environ.get("APPDATA")
+    if app_data:
+        candidates.append(Path(app_data) / "Tarang" / ".env")
+        candidates.append(Path(app_data) / "Antarang" / ".env")
+    candidates.append(Path.home() / ".antarang" / ".env")
+    candidates.append(Path.home() / ".tarang" / ".env")
+    candidates.append(Path("D:/Tarang/.env"))
+    candidates.append(Path("d:/quick share/Tarang/.env"))
+
+    seen = set()
+    unique_candidates = []
+    for c in candidates:
+        try:
+            resolved = c.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                unique_candidates.append(resolved)
+        except Exception:
+            if c not in seen:
+                seen.add(c)
+                unique_candidates.append(c)
+    return unique_candidates
+
+
 def _load_dotenv_file(filepath: Path) -> Dict[str, str]:
     """Lightweight zero-dependency .env parser."""
     env_vars = {}
@@ -62,7 +104,7 @@ class AIConfig:
     DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
     DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
     DEFAULT_OPENROUTER_MODEL = "openrouter/free"
-    DEFAULT_CEREBRAS_MODEL = "llama3.3-70b"
+    DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b"
     DEFAULT_OFFLINE_REPO_ID = "Qwen/Qwen2.5-1.5B-Instruct-GGUF"
     DEFAULT_OFFLINE_MODEL_NAME = "Qwen2.5-1.5B-Instruct"
     DEFAULT_OFFLINE_QUANT = "q4_k_m"
@@ -73,7 +115,13 @@ class AIConfig:
 
     def __init__(self, project_root: Optional[Path] = None):
         self.project_root = project_root or Path(__file__).resolve().parent.parent.parent
-        self._dotenv_vars = _load_dotenv_file(self.project_root / ".env")
+        self._dotenv_vars: Dict[str, str] = {}
+        for candidate in _find_dotenv_candidates(self.project_root):
+            if candidate.is_file():
+                vars_from_file = _load_dotenv_file(candidate)
+                for k, v in vars_from_file.items():
+                    if k not in self._dotenv_vars and v:
+                        self._dotenv_vars[k] = v
 
     def _get_qsetting(self, key: str, default: Any = None) -> Any:
         try:
