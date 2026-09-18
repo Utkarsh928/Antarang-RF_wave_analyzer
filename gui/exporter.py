@@ -155,7 +155,11 @@ class ExportDialog(QDialog):
                 self._progress.setValue(int(done / total * 100))
 
             if self._checks['payload_txt'].isChecked():
-                bits = self._info.corrected_bits or self._info.raw_bits
+                bits = (
+                    self._info.corrected_bits
+                    if self._info.corrected_bits is not None
+                    else self._info.raw_bits
+                )
                 if bits is not None and self._info.payload_offset > 0:
                     payload = bits[self._info.payload_offset:]
                     path = os.path.join(folder, f"{base_name}_payload.txt")
@@ -195,7 +199,7 @@ class ExportDialog(QDialog):
 
             # Fix #9: Protocol analysis text export
             if self._checks['protocol_txt'].isChecked():
-                if hasattr(self._info, 'protocol_type') and self._info.protocol_type:
+                if hasattr(self._info, 'protocol_type') and self._info.protocol_type is not None and self._info.protocol_type != "":
                     path = os.path.join(folder, f"{base_name}_protocol.txt")
                     self._export_protocol_txt(path)
                     exported.append(path)
@@ -307,7 +311,7 @@ class ExportDialog(QDialog):
             for i, frame in enumerate(frames):
                 proto = results[i].protocol if i < len(results) else '—'
                 c = results[i].confidence if i < len(results) else 0.0
-                preview = frame[:8].hex() if frame else ''
+                preview = frame[:8].hex() if frame is not None and len(frame) > 0 else ''
                 f.write(f"  Frame {i+1:3d}: {len(frame):4d} bytes  "
                         f"{proto} ({c*100:.0f}%)  {preview}...\n")
 
@@ -399,7 +403,7 @@ class ExportDialog(QDialog):
                     story.append(Spacer(1, 0.3*cm))
 
             # Fix #9 (protocol section in PDF) — added below
-            if hasattr(self._info, 'protocol_type') and self._info.protocol_type:
+            if hasattr(self._info, 'protocol_type') and self._info.protocol_type is not None and self._info.protocol_type != "":
                 story.append(Paragraph("Protocol Analysis", styles['Heading2']))
                 proto_data = [['Field', 'Value']]
                 proto_data.append(['Protocol', getattr(self._info, 'protocol_type', '—')])
