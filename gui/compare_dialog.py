@@ -9,7 +9,7 @@ import pyqtgraph as pg
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QFileDialog, QTabWidget, QWidget, QSplitter, QGroupBox,
-    QGridLayout, QComboBox, QFrame
+    QGridLayout, QComboBox, QFrame, QStackedWidget, QCheckBox
 )
 from PyQt6.QtCore import Qt
 
@@ -74,36 +74,112 @@ class CompareDialog(QDialog):
 
     def _build_spectrum_tab(self) -> QWidget:
         w = QWidget()
-        layout = QHBoxLayout(w)
-        layout.setSpacing(4)
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(8)
+
+        # ── Spectrum Controls Bar ─────────────────────────────────────────
+        ctrl_bar = QHBoxLayout()
+        ctrl_bar.setSpacing(10)
+
+        # Interactive Spectrum Overlay toggle button
+        self._btn_overlay = QPushButton("⇄  Spectrum Overlay")
+        self._btn_overlay.setCheckable(True)
+        self._btn_overlay.setChecked(False)
+        self._btn_overlay.setFixedHeight(30)
+        self._btn_overlay.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_overlay.toggled.connect(self._on_overlay_toggled)
+        self._update_overlay_btn_style()
+        ctrl_bar.addWidget(self._btn_overlay)
+
+        self._lbl_overlay_info = QLabel("Mode: Side-by-Side Comparison")
+        self._lbl_overlay_info.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        ctrl_bar.addWidget(self._lbl_overlay_info)
+
+        ctrl_bar.addStretch()
+
+        self._btn_autoscale = QPushButton("⛶  Auto Scale")
+        self._btn_autoscale.setFixedHeight(30)
+        self._btn_autoscale.setStyleSheet(
+            "QPushButton { background: #242426; color: #8E8E93; border: 1px solid #2C2C2E; "
+            "border-radius: 6px; padding: 2px 12px; font-size: 11px; } "
+            "QPushButton:hover { background: #2C2C2E; color: #F2F2F7; }")
+        self._btn_autoscale.clicked.connect(self._autoscale_plots)
+        ctrl_bar.addWidget(self._btn_autoscale)
+
+        layout.addLayout(ctrl_bar)
+
+        # ── Stacked display: Side-by-Side (0) vs. Unified Overlay (1) ─────
+        self._spectrum_stack = QStackedWidget()
+
+        # Page 0: Side-by-Side Plots
+        side_widget = QWidget()
+        sl = QHBoxLayout(side_widget)
+        sl.setContentsMargins(0, 0, 0, 0)
+        sl.setSpacing(8)
 
         # Left plot — primary
-        left_box = QGroupBox("Primary")
+        left_box = QGroupBox("Primary Signal Spectrum")
+        left_box.setObjectName("side_panel")
         ll = QVBoxLayout(left_box)
         self._plot_left = pg.PlotWidget()
         self._plot_left.setLabel('left', 'Power', units='dB')
         self._plot_left.setLabel('bottom', 'Frequency', units='Hz')
         self._plot_left.showGrid(x=True, y=True, alpha=0.3)
-        self._curve_left = self._plot_left.plot(pen=pg.mkPen('#1677E8', width=1.5))
+        self._curve_left = self._plot_left.plot(pen=pg.mkPen('#1677E8', width=1.6))
         ll.addWidget(self._plot_left)
         self._lbl_left_info = QLabel("—")
         self._lbl_left_info.setObjectName("label_key")
         ll.addWidget(self._lbl_left_info)
-        layout.addWidget(left_box)
+        sl.addWidget(left_box)
 
         # Right plot — secondary
-        right_box = QGroupBox("Secondary")
+        right_box = QGroupBox("Secondary Signal Spectrum")
+        right_box.setObjectName("side_panel")
         rl = QVBoxLayout(right_box)
         self._plot_right = pg.PlotWidget()
         self._plot_right.setLabel('left', 'Power', units='dB')
         self._plot_right.setLabel('bottom', 'Frequency', units='Hz')
         self._plot_right.showGrid(x=True, y=True, alpha=0.3)
-        self._curve_right = self._plot_right.plot(pen=pg.mkPen('#38BDF8', width=1.5))
+        self._curve_right = self._plot_right.plot(pen=pg.mkPen('#38BDF8', width=1.6))
         rl.addWidget(self._plot_right)
         self._lbl_right_info = QLabel("Load a second file to compare")
         self._lbl_right_info.setObjectName("label_key")
         rl.addWidget(self._lbl_right_info)
-        layout.addWidget(right_box)
+        sl.addWidget(right_box)
+
+        self._spectrum_stack.addWidget(side_widget)
+
+        # Page 1: Unified Spectrum Overlay
+        overlay_widget = QWidget()
+        ol = QVBoxLayout(overlay_widget)
+        ol.setContentsMargins(0, 0, 0, 0)
+        ol.setSpacing(6)
+
+        overlay_box = QGroupBox("Dual Spectrum Overlay (Shared Frequency Axis)")
+        overlay_box.setObjectName("side_panel")
+        obl = QVBoxLayout(overlay_box)
+
+        self._plot_overlay = pg.PlotWidget()
+        self._plot_overlay.setLabel('left', 'Power', units='dB')
+        self._plot_overlay.setLabel('bottom', 'Frequency', units='Hz')
+        self._plot_overlay.showGrid(x=True, y=True, alpha=0.3)
+        self._overlay_legend = self._plot_overlay.addLegend(offset=(-10, 10))
+        self._curve_overlay_pri = self._plot_overlay.plot(
+            pen=pg.mkPen('#1677E8', width=1.8), name="Primary")
+        self._curve_overlay_sec = self._plot_overlay.plot(
+            pen=pg.mkPen('#F59E0B', width=1.8), name="Secondary")
+        obl.addWidget(self._plot_overlay)
+
+        self._lbl_overlay_legend_desc = QLabel(
+            "● Trace 1 (Blue): Primary  |  ● Trace 2 (Amber): Secondary  — Rendered simultaneously on unified frequency axis")
+        self._lbl_overlay_legend_desc.setStyleSheet("color: #8E8E93; font-size: 11px; padding: 2px;")
+        obl.addWidget(self._lbl_overlay_legend_desc)
+
+        ol.addWidget(overlay_box)
+        self._spectrum_stack.addWidget(overlay_widget)
+
+        layout.addWidget(self._spectrum_stack, stretch=1)
 
         # Populate primary if we have FFT data, or compute from samples
         if (self._primary_freqs is None or self._primary_power is None) and self._primary is not None and getattr(self._primary, 'samples', None) is not None:
@@ -114,22 +190,80 @@ class CompareDialog(QDialog):
                 pass
 
         if self._primary_freqs is not None and self._primary_power is not None:
-            self._curve_left.setData(x=self._primary_freqs, y=self._primary_power)
+            vf = np.isfinite(self._primary_freqs) & np.isfinite(self._primary_power)
+            self._curve_left.setData(x=self._primary_freqs[vf], y=self._primary_power[vf])
             self._plot_left.autoRange()
             mod_str = self._primary.modulation if self._primary.modulation else "—"
             snr_str = f"{self._primary.snr_db:.1f} dB" if self._primary.snr_db is not None else "—"
             sr_str = f"{self._primary.sample_rate/1000:.1f} kHz" if self._primary.sample_rate else "—"
             self._lbl_left_info.setText(f"SR: {sr_str}  |  Mod: {mod_str}  |  SNR: {snr_str}")
 
+        self._update_overlay_plot()
         return w
 
+    def _on_overlay_toggled(self, checked: bool):
+        self._spectrum_stack.setCurrentIndex(1 if checked else 0)
+        self._update_overlay_btn_style()
+        if checked:
+            self._lbl_overlay_info.setText("Mode: Unified Spectrum Overlay (Shared Frequency Axis)")
+            self._update_overlay_plot()
+            self._plot_overlay.autoRange()
+        else:
+            self._lbl_overlay_info.setText("Mode: Side-by-Side Comparison")
+            self._plot_left.autoRange()
+            self._plot_right.autoRange()
+
+    def _update_overlay_btn_style(self):
+        checked = self._btn_overlay.isChecked()
+        if checked:
+            self._btn_overlay.setText("✓  Spectrum Overlay (Active)")
+            self._btn_overlay.setStyleSheet(
+                "QPushButton { background: #1677E8; color: #FFFFFF; font-weight: 600; "
+                "border: 1px solid #1677E8; border-radius: 6px; padding: 4px 14px; font-size: 11px; } "
+                "QPushButton:hover { background: #1468D5; }")
+        else:
+            self._btn_overlay.setText("⇄  Spectrum Overlay")
+            self._btn_overlay.setStyleSheet(
+                "QPushButton { background: #242426; color: #8E8E93; "
+                "border: 1px solid #2C2C2E; border-radius: 6px; padding: 4px 14px; font-size: 11px; } "
+                "QPushButton:hover { background: #2C2C2E; color: #F2F2F7; }")
+
+    def _update_overlay_plot(self):
+        # Update Primary curve on shared axis
+        if self._primary_freqs is not None and self._primary_power is not None and len(self._primary_freqs) > 0:
+            vf = np.isfinite(self._primary_freqs) & np.isfinite(self._primary_power)
+            self._curve_overlay_pri.setData(x=self._primary_freqs[vf], y=self._primary_power[vf])
+        else:
+            self._curve_overlay_pri.setData(x=[], y=[])
+
+        # Update Secondary curve on shared axis
+        if self._sec_freqs is not None and self._sec_power is not None and len(self._sec_freqs) > 0:
+            vf2 = np.isfinite(self._sec_freqs) & np.isfinite(self._sec_power)
+            self._curve_overlay_sec.setData(x=self._sec_freqs[vf2], y=self._sec_power[vf2])
+        else:
+            self._curve_overlay_sec.setData(x=[], y=[])
+
+        # Refresh legend
+        self._overlay_legend.clear()
+        p_name = self._primary.file_name or "Primary"
+        s_name = self._secondary.file_name if self._secondary else "Secondary (none)"
+        self._overlay_legend.addItem(self._curve_overlay_pri, f"Primary: {p_name}")
+        self._overlay_legend.addItem(self._curve_overlay_sec, f"Secondary: {s_name}")
+
+    def _autoscale_plots(self):
+        if self._spectrum_stack.currentIndex() == 1:
+            self._plot_overlay.autoRange()
+        else:
+            self._plot_left.autoRange()
+            self._plot_right.autoRange()
+
     def apply_theme(self, mode: str):
-        """Use the application's chrome while retaining blue comparison traces."""
+        """Use the application's chrome while retaining distinguishable traces."""
         self._theme_mode = mode
         apply_window_chrome(self, mode)
         background, text = (('#050505', '#8E8E93') if mode == 'dark'
                             else ('#FFFFFF', '#4B5563'))
-        for plot in (self._plot_left, self._plot_right):
+        for plot in (self._plot_left, self._plot_right, self._plot_overlay):
             plot.setBackground(background)
             for axis in ('left', 'bottom'):
                 plot.getAxis(axis).setPen(pg.mkPen(text))
@@ -256,6 +390,7 @@ class CompareDialog(QDialog):
             self._lbl_right_info.setText(
                 f"SR: {sr_text}  |  Mod: {mod_text}  |  SNR: {snr_text}")
             self._refresh_params_table()
+            self._update_overlay_plot()
 
         except Exception as e:
             # Graceful fallback — try load_wav directly
@@ -290,6 +425,7 @@ class CompareDialog(QDialog):
                 self._lbl_right_info.setText(
                     f"SR: {sr_text}  |  Mod: {mod_text}  |  SNR: {snr_text}")
                 self._refresh_params_table()
+                self._update_overlay_plot()
             except Exception as e2:
                 from PyQt6.QtWidgets import QMessageBox
                 QMessageBox.warning(self, "Load Error", f"Could not load file:\n{e2}")

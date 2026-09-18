@@ -61,8 +61,15 @@ Name: "assoc_wav"; Description: "Associate .wav RF recordings with Antarang"; Gr
 
 [Files]
 ; Core Antarang Application (from PyInstaller dist\Antarang)
-; Strictly exclude .env, secret keys, or git data from being packaged
+; Strictly exclude secret keys or git data from being packaged
 Source: "dist\Antarang\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.env,*.key,*.git*"; Components: core
+
+; Explicit Application Icon files for Windows Explorer and Shortcuts
+Source: "assets\branding\tarang.ico"; DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "assets\branding\tarang.ico"; DestDir: "{app}\assets\branding"; Flags: ignoreversion; Components: core
+
+; Prototype Online AI: Authorized development configuration for immediate offline/online operation
+Source: ".env"; DestDir: "{localappdata}\Tarang"; Flags: ignoreversion; Components: core
 
 ; Optional Offline AI: Qwen 2.5 1.5B GGUF Model (~1.04 GB)
 ; Fetched from official Hugging Face URL during installation ONLY when 'ai' component is selected
@@ -72,22 +79,25 @@ Source: "dist\Antarang\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "{#QwenModelDownloadUrl}"; DestName: "qwen2.5-1.5b-instruct-q4_k_m.gguf"; DestDir: "{localappdata}\Tarang\models\qwen2.5-1.5b-instruct"; Hash: "{#QwenModelSha256}"; ExternalSize: {#QwenModelFileSize}; Flags: external download ignoreversion; Components: ai
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\branding\tarang.ico"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\tarang.ico"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\branding\tarang.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\tarang.ico"; Tasks: desktopicon
 
 [Registry]
 ; .iq File Association
 Root: HKA; Subkey: "Software\Classes\.iq"; ValueType: string; ValueName: ""; ValueData: "AntarangSignalFile"; Flags: uninsdeletevalue; Tasks: assoc_iq
 Root: HKA; Subkey: "Software\Classes\AntarangSignalFile"; ValueType: string; ValueName: ""; ValueData: "IQ Signal Data File"; Flags: uninsdeletekey; Tasks: assoc_iq
-Root: HKA; Subkey: "Software\Classes\AntarangSignalFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\assets\branding\tarang.ico,0"; Tasks: assoc_iq
+Root: HKA; Subkey: "Software\Classes\AntarangSignalFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\tarang.ico,0"; Tasks: assoc_iq
 Root: HKA; Subkey: "Software\Classes\AntarangSignalFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: assoc_iq
 
 ; .wav File Association (optional)
 Root: HKA; Subkey: "Software\Classes\.wav\OpenWithProgids"; ValueType: string; ValueName: "AntarangAudioFile"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc_wav
 Root: HKA; Subkey: "Software\Classes\AntarangAudioFile"; ValueType: string; ValueName: ""; ValueData: "WAV RF Recording"; Flags: uninsdeletekey; Tasks: assoc_wav
-Root: HKA; Subkey: "Software\Classes\AntarangAudioFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\assets\branding\tarang.ico,0"; Tasks: assoc_wav
+Root: HKA; Subkey: "Software\Classes\AntarangAudioFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\tarang.ico,0"; Tasks: assoc_wav
 Root: HKA; Subkey: "Software\Classes\AntarangAudioFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: assoc_wav
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+Type: files; Name: "{localappdata}\Tarang\.env"

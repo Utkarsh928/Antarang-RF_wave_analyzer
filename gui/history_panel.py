@@ -40,44 +40,55 @@ class _HistoryEntry:
         self.errors_corrected = info.fec_errors_corrected
 
     def list_label(self) -> str:
-        return (f"[{self.timestamp}]  {self.file_name}"
-                f"  —  {self.modulation}  |  SNR {self.snr_db:.1f} dB")
+        return f"{self.file_name}\n{self.timestamp}  •  {self.modulation}  •  SNR {self.snr_db:.1f} dB"
 
     def detail_html(self) -> str:
-        def _row(k, v): return f"<tr><td style='padding:3px 8px'>{k}</td><td style='padding:3px 8px'>{v}</td></tr>"
+        def _row(k, v, alt=False):
+            bg = "#18181A" if alt else "#121214"
+            return (f"<tr style='background:{bg};'>"
+                    f"<td style='padding:4px 8px; color:#8E8E93; font-size:11px; font-weight:500; border-bottom:1px solid #242426; width:90px;'>{k}</td>"
+                    f"<td style='padding:4px 8px; color:#F2F2F7; font-size:11px; font-family:Consolas, monospace; border-bottom:1px solid #242426;'>{v}</td>"
+                    f"</tr>")
+
         def _hz(v):
             if v >= 1e6: return f"{v/1e6:.3f} MHz"
             if v >= 1e3: return f"{v/1e3:.3f} kHz"
             return f"{v:.1f} Hz"
 
-        rows = [
-            _row("File", self.file_name),
-            _row("Type", self.file_type),
-            _row("Time", self.timestamp),
-            _row("Sample Rate", _hz(self.sample_rate) if self.sample_rate else "—"),
-            _row("Duration", f"{self.duration:.3f} s"),
-            _row("Modulation", f"{self.modulation}  ({self.mod_confidence*100:.1f}%)"),
-            _row("SNR", f"{self.snr_db:.1f} dB"),
-            _row("Bandwidth", _hz(self.bandwidth) if self.bandwidth else "—"),
-            _row("Bit Rate", f"{self.bit_rate:.0f} bps" if self.bit_rate else "—"),
-            _row("FEC", self.fec_type),
+        rows_data = [
+            ("File", self.file_name),
+            ("Type", self.file_type),
+            ("Time", self.timestamp),
+            ("Sample Rate", _hz(self.sample_rate) if self.sample_rate else "—"),
+            ("Duration", f"{self.duration:.3f} s"),
+            ("Modulation", f"{self.modulation} ({self.mod_confidence*100:.1f}%)"),
+            ("SNR", f"{self.snr_db:.1f} dB"),
+            ("Bandwidth", _hz(self.bandwidth) if self.bandwidth else "—"),
+            ("Bit Rate", f"{self.bit_rate:.0f} bps" if self.bit_rate else "—"),
+            ("FEC", self.fec_type),
         ]
         if self.fec_type != '—':
-            rows.append(_row("FEC Errors", f"detected={self.errors_detected}  corrected={self.errors_corrected}"))
+            rows_data.append(("FEC Errors", f"det={self.errors_detected}  corr={self.errors_corrected}"))
         if self.protocol:
-            rows.append(_row("Protocol", self.protocol))
+            rows_data.append(("Protocol", self.protocol))
         if self.num_frames is not None:
-            rows.append(_row("Frames", str(self.num_frames)))
+            rows_data.append(("Frames", str(self.num_frames)))
         if self.encrypted is not None:
             enc_text = "DETECTED" if self.encrypted else "Not Detected"
-            rows.append(f"<tr><td style='padding:3px 8px'>Encryption</td>"
-                        f"<td style='padding:3px 8px'><b>{enc_text}</b></td></tr>")
+            rows_data.append(("Encryption", enc_text))
         if self.shannon_entropy is not None:
-            rows.append(_row("Entropy", f"{self.shannon_entropy:.4f} bits/byte"))
+            rows_data.append(("Entropy", f"{self.shannon_entropy:.4f} b/B"))
+
+        rows_html = "".join(_row(k, v, i % 2 == 1) for i, (k, v) in enumerate(rows_data))
 
         return (
-            f"<h3 style='margin-bottom:4px'>{self.file_name}</h3>"
-            f"<table style='border-collapse:collapse'>{''.join(rows)}</table>"
+            f"<div style='font-family:Segoe UI, sans-serif; padding:4px;'>"
+            f"<div style='color:#F2F2F7; font-weight:600; font-size:12px; margin-bottom:6px; word-break:break-all;'>"
+            f"{self.file_name}</div>"
+            f"<table style='width:100%; border-collapse:collapse; border:1px solid #2C2C2E; border-radius:6px; overflow:hidden;'>"
+            f"{rows_html}"
+            f"</table>"
+            f"</div>"
         )
 
 
@@ -95,23 +106,44 @@ class HistoryPanel(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(6, 6, 6, 6)
-        root.setSpacing(6)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(8)
 
-        # Header
+        # Header toolbar
         hdr = QHBoxLayout()
+        hdr.setSpacing(6)
+
         lbl = QLabel("Session History")
-        lbl.setObjectName("label_section")
+        lbl.setStyleSheet("font-size: 13px; font-weight: 600; color: #F2F2F7;")
         hdr.addWidget(lbl)
-        hdr.addStretch()
+
         self._lbl_count = QLabel("0 signals")
-        self._lbl_count.setStyleSheet("color: #636366; font-size: 11px;")
+        self._lbl_count.setStyleSheet(
+            "background: #1C1C1E; color: #8E8E93; border: 1px solid #2C2C2E; "
+            "border-radius: 9px; padding: 2px 7px; font-size: 11px; font-weight: 500;")
         hdr.addWidget(self._lbl_count)
-        btn_clear = QPushButton("Clear")
-        btn_clear.setMaximumHeight(22)
-        btn_clear.setMaximumWidth(50)
-        btn_clear.clicked.connect(self._clear)
-        hdr.addWidget(btn_clear)
+        hdr.addStretch()
+
+        self._btn_open = QPushButton("Open")
+        self._btn_open.setToolTip("Reload selected signal into workspace")
+        self._btn_open.setFixedHeight(26)
+        self._btn_open.setStyleSheet(
+            "QPushButton { background: #1677E8; color: #FFFFFF; border: none; "
+            "border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; } "
+            "QPushButton:hover { background: #1468D5; }")
+        self._btn_open.clicked.connect(self._on_open_clicked)
+        hdr.addWidget(self._btn_open)
+
+        self._btn_clear = QPushButton("Clear")
+        self._btn_clear.setToolTip("Clear session history log")
+        self._btn_clear.setFixedHeight(26)
+        self._btn_clear.setStyleSheet(
+            "QPushButton { background: #242426; color: #8E8E93; border: 1px solid #2C2C2E; "
+            "border-radius: 6px; padding: 2px 10px; font-size: 11px; } "
+            "QPushButton:hover { background: #2C2C2E; color: #F2F2F7; }")
+        self._btn_clear.clicked.connect(self._clear)
+        hdr.addWidget(self._btn_clear)
+
         root.addLayout(hdr)
 
         sep = QFrame()
@@ -125,7 +157,13 @@ class HistoryPanel(QWidget):
 
         # List
         self._list = QListWidget()
-        self._list.setFont(QFont("Segoe UI", 11))
+        self._list.setWordWrap(True)
+        self._list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self._list.setStyleSheet(
+            "QListWidget { background: #101011; border: 1px solid #2C2C2E; border-radius: 8px; padding: 2px; } "
+            "QListWidget::item { padding: 6px 8px; border-bottom: 1px solid #1C1C1E; border-radius: 6px; margin: 1px 2px; line-height: 1.3; } "
+            "QListWidget::item:selected { background: #242426; color: #F2F2F7; border: 1px solid #38383A; } "
+            "QListWidget::item:hover:!selected { background: #18181A; }")
         self._list.currentRowChanged.connect(self._on_row_changed)
         self._list.itemDoubleClicked.connect(self._on_double_click)
         splitter.addWidget(self._list)
@@ -134,17 +172,19 @@ class HistoryPanel(QWidget):
         self._detail = QTextEdit()
         self._detail.setReadOnly(True)
         self._detail.setMinimumHeight(120)
+        self._detail.setStyleSheet(
+            "QTextEdit { background: #101011; border: 1px solid #2C2C2E; border-radius: 8px; padding: 4px; }")
         self._detail.setHtml(
-            "<p style='font-style:italic'>"
-            "Select an entry to see details. "
-            "Double-click to reload the file.</p>")
+            "<div style='font-family:Segoe UI, sans-serif; color:#636366; font-size:11px; font-style:italic; padding:8px;'>"
+            "Select an entry above to view parameters.<br>Double-click or press 'Open' to reload signal."
+            "</div>")
         splitter.addWidget(self._detail)
-        splitter.setSizes([180, 140])
+        splitter.setSizes([180, 160])
 
         root.addWidget(splitter, stretch=1)
 
-        # Hint
-        hint = QLabel("Double-click an entry to reload that file")
+        # Bottom Hint
+        hint = QLabel("💡 Double-click or select & press Open to reload file")
         hint.setStyleSheet("color: #636366; font-size: 10px;")
         root.addWidget(hint)
 
@@ -154,11 +194,19 @@ class HistoryPanel(QWidget):
         self._entries.insert(0, entry)       # newest first
 
         item = QListWidgetItem(entry.list_label())
+        item.setToolTip(
+            f"{entry.file_name}\nModulation: {entry.modulation} ({entry.mod_confidence*100:.1f}%)\n"
+            f"SNR: {entry.snr_db:.1f} dB\nDuration: {entry.duration:.3f} s\nPath: {entry.file_path}")
         item.setData(Qt.ItemDataRole.UserRole, len(self._entries) - 1)
 
         self._list.insertItem(0, item)
         self._list.setCurrentRow(0)
         self._lbl_count.setText(f"{len(self._entries)} signal{'s' if len(self._entries)!=1 else ''}")
+
+    def _on_open_clicked(self):
+        item = self._list.currentItem()
+        if item:
+            self._on_double_click(item)
 
     def _on_row_changed(self, row: int):
         if row < 0 or row >= len(self._entries):
@@ -177,7 +225,9 @@ class HistoryPanel(QWidget):
         self._entries.clear()
         self._list.clear()
         self._detail.setHtml(
-            "<p style='font-style:italic'>History cleared.</p>")
+            "<div style='font-family:Segoe UI, sans-serif; color:#636366; font-size:11px; font-style:italic; padding:8px;'>"
+            "History cleared."
+            "</div>")
         self._lbl_count.setText("0 signals")
 
     def session_summary(self) -> str:

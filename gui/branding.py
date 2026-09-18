@@ -33,10 +33,17 @@ def logo_pixmap(mode: str, width: int, height: int) -> QPixmap:
                           Qt.TransformationMode.SmoothTransformation)
 
 
-def window_icon(mode: str) -> QIcon:
-    """Return the Antarang mark for the native window title bar."""
+def window_icon(mode: str = "dark") -> QIcon:
+    """Return the Antarang mark for the native window title bar and taskbar."""
+    ico_path = BRANDING_DIR / "tarang.ico"
+    if ico_path.is_file():
+        icon = QIcon(str(ico_path))
+        if not icon.isNull():
+            return icon
     source = QPixmap(str(LIGHT_LOGO if mode == "light" else DARK_LOGO))
-    return QIcon(source.copy(
-        int(source.width() * .22), int(source.height() * .39),
-        int(source.width() * .22), int(source.height() * .22),
-    ))
+    if not source.isNull():
+        return QIcon(source.copy(
+            int(source.width() * .22), int(source.height() * .39),
+            int(source.width() * .22), int(source.height() * .22),
+        ))
+    return QIcon()

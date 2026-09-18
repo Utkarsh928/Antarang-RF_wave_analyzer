@@ -414,8 +414,9 @@ class SDRDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Antarang — Live Capture")
-        self.setMinimumWidth(640)
-        self.setMinimumHeight(620)
+        self.setMinimumWidth(780)
+        self.setMinimumHeight(690)
+        self.resize(800, 710)
         self.setStyleSheet(parent.styleSheet() if parent else "")
         apply_window_chrome(self, window_theme_mode(parent))
         self._worker:  SDRLiveWorker = None
@@ -430,37 +431,53 @@ class SDRDialog(QDialog):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setSpacing(10)
-        root.setContentsMargins(14, 14, 14, 14)
+        root.setSpacing(12)
+        root.setContentsMargins(16, 16, 16, 16)
 
         tabs = QTabWidget()
-        tabs.addTab(self._build_capture_tab(),  "Capture")
-        tabs.addTab(self._build_hardware_tab(), "Hardware")
-        tabs.addTab(self._build_help_tab(),     "Help")
+        tabs.addTab(self._build_capture_tab(),  "Live Capture")
+        tabs.addTab(self._build_hardware_tab(), "Hardware Status")
+        tabs.addTab(self._build_help_tab(),     "Help & Guide")
         root.addWidget(tabs, stretch=1)
 
-        # Status + progress
+        # Status + progress footer
+        footer_box = QWidget()
+        footer_lay = QVBoxLayout(footer_box)
+        footer_lay.setContentsMargins(0, 4, 0, 0)
+        footer_lay.setSpacing(6)
+
         self._status_lbl = QLabel("Ready — select device and press Capture & Analyze")
-        self._status_lbl.setStyleSheet("font-size:12px;")
-        root.addWidget(self._status_lbl)
+        self._status_lbl.setStyleSheet("font-size: 12px; color: #8E8E93;")
+        footer_lay.addWidget(self._status_lbl)
 
         self._progress = QProgressBar()
         self._progress.setRange(0, 100)
         self._progress.setValue(0)
+        self._progress.setFixedHeight(4)
         self._progress.hide()
-        root.addWidget(self._progress)
+        footer_lay.addWidget(self._progress)
+        root.addWidget(footer_box)
 
-        # Buttons
+        # Action Buttons
         btn_row = QHBoxLayout()
-        self._btn_capture = QPushButton("Capture & Analyze")
+        btn_row.setSpacing(10)
+
+        self._btn_capture = QPushButton("▶  Capture & Analyze")
         self._btn_capture.setObjectName("btn_primary")
+        self._btn_capture.setMinimumHeight(34)
+        self._btn_capture.setMinimumWidth(190)
         self._btn_capture.clicked.connect(self._start_capture)
 
         self._btn_stop = QPushButton("Stop")
+        self._btn_stop.setObjectName("btn_cancel")
+        self._btn_stop.setMinimumHeight(34)
+        self._btn_stop.setMinimumWidth(90)
         self._btn_stop.setEnabled(False)
         self._btn_stop.clicked.connect(self._stop_capture)
 
-        btn_cancel = QPushButton("Cancel")
+        btn_cancel = QPushButton("Close")
+        btn_cancel.setMinimumHeight(34)
+        btn_cancel.setMinimumWidth(80)
         btn_cancel.clicked.connect(self.reject)
 
         btn_row.addWidget(self._btn_capture)
@@ -472,111 +489,163 @@ class SDRDialog(QDialog):
     def _build_capture_tab(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setSpacing(10)
+        lay.setSpacing(12)
+        lay.setContentsMargins(12, 12, 12, 12)
 
-        # ── Device row ────────────────────────────────────────────────────
-        dev_group = QGroupBox("SDR Device")
-        dg = QGridLayout(dev_group)
+        # ── Device & Interface Card ───────────────────────────────────────
+        dev_group = QGroupBox("SDR DEVICE & SOURCE")
+        dev_group.setObjectName("side_panel")
+        dg = QVBoxLayout(dev_group)
+        dg.setSpacing(8)
+        dg.setContentsMargins(14, 14, 14, 14)
 
-        dg.addWidget(QLabel("Device:"), 0, 0)
+        dev_row = QHBoxLayout()
+        dev_row.setSpacing(10)
+        dev_lbl = QLabel("Source:")
+        dev_lbl.setObjectName("label_key")
+        dev_lbl.setFixedWidth(60)
+        dev_row.addWidget(dev_lbl)
+
         self._combo_device = QComboBox()
-        self._combo_device.setMinimumWidth(340)
+        self._combo_device.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._combo_device.currentIndexChanged.connect(self._on_device_changed)
-        dg.addWidget(self._combo_device, 0, 1)
+        dev_row.addWidget(self._combo_device)
 
-        self._btn_refresh = QPushButton("Refresh")
+        self._btn_refresh = QPushButton("⟳ Refresh")
+        self._btn_refresh.setFixedWidth(90)
         self._btn_refresh.clicked.connect(self._load_devices)
-        dg.addWidget(self._btn_refresh, 0, 2)
+        dev_row.addWidget(self._btn_refresh)
+        dg.addLayout(dev_row)
 
         self._lbl_device_info = QLabel("")
-        self._lbl_device_info.setStyleSheet("font-size:11px;")
-        dg.addWidget(self._lbl_device_info, 1, 0, 1, 3)
+        self._lbl_device_info.setStyleSheet("color: #8E8E93; font-size: 11px; padding-left: 70px;")
+        self._lbl_device_info.setWordWrap(True)
+        dg.addWidget(self._lbl_device_info)
 
         lay.addWidget(dev_group)
 
-        # ── Frequency & band presets ──────────────────────────────────────
-        freq_group = QGroupBox("Frequency")
-        fg = QGridLayout(freq_group)
+        # ── Two-column parameters layout ──────────────────────────────────
+        params_row = QHBoxLayout()
+        params_row.setSpacing(12)
 
-        fg.addWidget(QLabel("Preset:"), 0, 0)
+        # Column 1: RF Tuning & Acquisition Parameters
+        rf_group = QGroupBox("RF TUNING & ACQUISITION")
+        rf_group.setObjectName("side_panel")
+        rg = QGridLayout(rf_group)
+        rg.setHorizontalSpacing(10)
+        rg.setVerticalSpacing(8)
+        rg.setContentsMargins(14, 14, 14, 14)
+
+        lbl_p = QLabel("Frequency Preset:")
+        lbl_p.setObjectName("label_key")
+        rg.addWidget(lbl_p, 0, 0)
         self._combo_preset = QComboBox()
         for p in FREQUENCY_PRESETS:
-            self._combo_preset.addItem(f"{p[0]}  —  {p[2]:.3f} MHz SR")
+            self._combo_preset.addItem(f"{p[0]}  ({p[2]:.2f} MHz SR)")
         self._combo_preset.currentIndexChanged.connect(self._on_preset_changed)
-        fg.addWidget(self._combo_preset, 0, 1, 1, 2)
+        rg.addWidget(self._combo_preset, 0, 1)
 
-        fg.addWidget(QLabel("Center Freq (MHz):"), 1, 0)
+        lbl_f = QLabel("Center Frequency:")
+        lbl_f.setObjectName("label_key")
+        rg.addWidget(lbl_f, 1, 0)
         self._spin_freq = QDoubleSpinBox()
         self._spin_freq.setRange(0.1, 6000.0)
         self._spin_freq.setValue(433.92)
         self._spin_freq.setDecimals(4)
         self._spin_freq.setSingleStep(0.1)
-        self._spin_freq.setMinimumWidth(120)
-        fg.addWidget(self._spin_freq, 1, 1)
+        self._spin_freq.setSuffix(" MHz")
+        rg.addWidget(self._spin_freq, 1, 1)
 
         self._lbl_freq_desc = QLabel("IoT sensors, key fobs, alarms")
-        self._lbl_freq_desc.setStyleSheet("font-size:11px;")
-        fg.addWidget(self._lbl_freq_desc, 1, 2)
+        self._lbl_freq_desc.setStyleSheet("color: #38BDF8; font-size: 11px; font-style: italic;")
+        rg.addWidget(self._lbl_freq_desc, 2, 1)
 
-        fg.addWidget(QLabel("Sample Rate:"), 2, 0)
+        lbl_s = QLabel("Sample Rate:")
+        lbl_s.setObjectName("label_key")
+        rg.addWidget(lbl_s, 3, 0)
         self._combo_sr = QComboBox()
         for label, _ in SAMPLE_RATE_OPTIONS:
             self._combo_sr.addItem(label)
         self._combo_sr.setCurrentIndex(2)  # 2.4 MHz default
-        fg.addWidget(self._combo_sr, 2, 1, 1, 2)
+        rg.addWidget(self._combo_sr, 3, 1)
 
-        lay.addWidget(freq_group)
+        lbl_d = QLabel("Capture Duration:")
+        lbl_d.setObjectName("label_key")
+        rg.addWidget(lbl_d, 4, 0)
+        self._spin_dur = QDoubleSpinBox()
+        self._spin_dur.setRange(0.1, 60.0)
+        self._spin_dur.setValue(1.0)
+        self._spin_dur.setSingleStep(0.5)
+        self._spin_dur.setSuffix(" s")
+        rg.addWidget(self._spin_dur, 4, 1)
 
-        # ── Signal type (simulation) + gain/duration ──────────────────────
-        param_group = QGroupBox("Capture Parameters")
-        pg = QGridLayout(param_group)
+        lbl_g = QLabel("Hardware RF Gain:")
+        lbl_g.setObjectName("label_key")
+        rg.addWidget(lbl_g, 5, 0)
+        self._spin_gain = QDoubleSpinBox()
+        self._spin_gain.setRange(0, 70)
+        self._spin_gain.setValue(30)
+        self._spin_gain.setSingleStep(5)
+        self._spin_gain.setSuffix(" dB")
+        self._spin_gain.setToolTip("RF gain for hardware dongle (0–70 dB, default = 30)")
+        rg.addWidget(self._spin_gain, 5, 1)
 
-        pg.addWidget(QLabel("Signal Type:"), 0, 0)
+        params_row.addWidget(rf_group, stretch=1)
+
+        # Column 2: Simulation Parameters
+        sim_group = QGroupBox("SIGNAL SIMULATION")
+        sim_group.setObjectName("side_panel")
+        sg = QGridLayout(sim_group)
+        sg.setHorizontalSpacing(10)
+        sg.setVerticalSpacing(8)
+        sg.setContentsMargins(14, 14, 14, 14)
+
+        sim_intro = QLabel("Applies when running without physical SDR hardware:")
+        sim_intro.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        sim_intro.setWordWrap(True)
+        sg.addWidget(sim_intro, 0, 0, 1, 2)
+
+        lbl_st = QLabel("Signal Type:")
+        lbl_st.setObjectName("label_key")
+        sg.addWidget(lbl_st, 1, 0)
         self._combo_signal_type = QComboBox()
         from core.sdr_stream import SignalSimulator
         for st in SignalSimulator.SIGNAL_TYPES:
             self._combo_signal_type.addItem(st)
         self._combo_signal_type.setCurrentText("QPSK")
         self._combo_signal_type.setToolTip(
-            "Simulation only — select the type of signal to generate.\n"
-            "With real hardware this setting is ignored.")
-        pg.addWidget(self._combo_signal_type, 0, 1, 1, 2)
+            "Simulation only — select the modulation to generate.")
+        sg.addWidget(self._combo_signal_type, 1, 1)
 
-        self._lbl_simonly = QLabel("↑  simulation only — ignored with real hardware")
-        self._lbl_simonly.setStyleSheet("font-size:10px;")
-        pg.addWidget(self._lbl_simonly, 1, 1, 1, 2)
-
-        pg.addWidget(QLabel("SNR (dB):"), 2, 0)
+        lbl_snr = QLabel("Simulated SNR:")
+        lbl_snr.setObjectName("label_key")
+        sg.addWidget(lbl_snr, 2, 0)
         self._spin_snr = QDoubleSpinBox()
         self._spin_snr.setRange(-5, 40)
         self._spin_snr.setValue(15)
         self._spin_snr.setSingleStep(1)
-        self._spin_snr.setToolTip("Simulated signal-to-noise ratio (simulation only)")
-        pg.addWidget(self._spin_snr, 2, 1)
-        self._lbl_snr_desc = QLabel("simulation only")
-        self._lbl_snr_desc.setStyleSheet("font-size:10px;")
-        pg.addWidget(self._lbl_snr_desc, 2, 2)
+        self._spin_snr.setSuffix(" dB")
+        self._spin_snr.setToolTip("Simulated signal-to-noise ratio")
+        sg.addWidget(self._spin_snr, 2, 1)
 
-        pg.addWidget(QLabel("Gain (dB):"), 3, 0)
-        self._spin_gain = QDoubleSpinBox()
-        self._spin_gain.setRange(0, 70)
-        self._spin_gain.setValue(30)
-        self._spin_gain.setSingleStep(5)
-        self._spin_gain.setToolTip("RF gain for real hardware (0–70 dB, 'auto' = 30)")
-        pg.addWidget(self._spin_gain, 3, 1)
+        self._lbl_snr_desc = QLabel("")
 
-        pg.addWidget(QLabel("Duration (seconds):"), 4, 0)
-        self._spin_dur = QDoubleSpinBox()
-        self._spin_dur.setRange(0.1, 60.0)
-        self._spin_dur.setValue(1.0)
-        self._spin_dur.setSingleStep(0.5)
-        pg.addWidget(self._spin_dur, 4, 1)
+        self._lbl_simonly = QLabel(
+            "Note: Connected physical SDR dongles acquire live radio signals from the antenna; "
+            "simulation modulation and synthetic SNR are bypassed.")
+        self._lbl_simonly.setStyleSheet("color: #636366; font-size: 10px; line-height: 1.3;")
+        self._lbl_simonly.setWordWrap(True)
+        sg.addWidget(self._lbl_simonly, 3, 0, 1, 2)
+        sg.setRowStretch(4, 1)
 
-        lay.addWidget(param_group)
+        params_row.addWidget(sim_group, stretch=1)
+        lay.addLayout(params_row)
 
-        # ── Live spectrum preview ─────────────────────────────────────────
-        preview_group = QGroupBox("Live Spectrum Preview")
+        # ── Live Spectrum Preview Card ────────────────────────────────────
+        preview_group = QGroupBox("REAL-TIME SPECTRUM PREVIEW")
+        preview_group.setObjectName("side_panel")
         pv_lay = QVBoxLayout(preview_group)
+        pv_lay.setContentsMargins(10, 10, 10, 10)
         self._mini_spectrum = MiniSpectrumWidget()
         pv_lay.addWidget(self._mini_spectrum)
         lay.addWidget(preview_group)

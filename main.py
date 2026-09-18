@@ -31,7 +31,7 @@ try:
 except ImportError:  # Keep startup working on installations without multimedia.
     QMediaFormat = QMediaPlayer = QVideoWidget = None
 
-from gui.branding import SPLASH_VIDEO, logo_pixmap
+from gui.branding import SPLASH_VIDEO, logo_pixmap, window_icon
 from gui.main_window import MainWindow
 from gui.theme import theme_stylesheet
 
@@ -110,6 +110,13 @@ class AntarangSplash(QWidget):
 
 
 def main():
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Antarang.SignalAnalyzer.1.0")
+        except Exception:
+            pass
+
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
@@ -117,6 +124,7 @@ def main():
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("SignalAnalyzerPro")
     mode = str(QSettings("SignalAnalyzerPro", "SignalAnalyzerPro").value("ui/theme", "dark"))
+    app.setWindowIcon(window_icon(mode))
     app.setStyleSheet(theme_stylesheet(mode))
 
     splash = AntarangSplash(mode)
